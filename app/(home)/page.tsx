@@ -1,11 +1,15 @@
 import { Button } from '@/components/ui/button'
 import { onBoardUser } from '@/modules/auth/actions'
 import ClaimLinkForm from '@/modules/home/components/claim-link-form'
+import { getCurrentUsername } from '@/modules/profile/actions'
 import Link from 'next/link'
 import React from 'react'
 
 const HomePage = async () => {
-  await onBoardUser()
+  const user = await onBoardUser()
+  const profile = await getCurrentUsername()
+
+  console.log(profile)
   return (
     <div className='min-h-screen'>
       <main className='text-center space-y-8 py-32'>
@@ -23,19 +27,26 @@ const HomePage = async () => {
           </p>
 
           <div className='pt-4'>
-            <Link href="/admin/my-tree">
+
+{
+  user.success && profile?.username && (
+<Link href="/admin/my-tree">
               <Button size="lg" className="px-8 py-3 text-lg font-medium cursor-pointer">
                 TreeBio Dashboard
               </Button>
             </Link>
+  )
+}
+
+            
           </div>
         </div>
 
-<section className='pb-16 md:pb-24'>
-    <div className='max-w-md mx-auto'>
-    <ClaimLinkForm/>
-    </div>
-</section>
+        <section className='pb-16 md:pb-24'>
+          <div className='max-w-md mx-auto'>
+            <ClaimLinkForm />
+          </div>
+        </section>
       </main>
     </div>
   )
