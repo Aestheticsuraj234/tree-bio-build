@@ -1,3 +1,4 @@
+import { logProfileVist } from '@/modules/analytics/actions';
 import { getUserByUsername } from '@/modules/profile/actions';
 import TreeBioProfile from '@/modules/profile/components/treebio-profile';
 import { redirect } from 'next/navigation';
@@ -11,9 +12,14 @@ const profilePage = async({params}:{params:Promise<{username:string}>}) => {
         return redirect("/")
     }
 
-  return (
-  <TreeBioProfile profileData={profileData}/>
-  )
+    logProfileVist(profileData.id).catch((error) => {
+        console.error("Failed to log profile visit:", error);
+    });
+
+    return (
+      // @ts-ignore
+        <TreeBioProfile profileData={profileData} />
+    );
 }
 
 export default profilePage

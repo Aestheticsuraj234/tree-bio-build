@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
+import { logLinkClick } from "@/modules/analytics/actions";
 
 
 interface LinkItem {
@@ -97,6 +98,16 @@ const TreeBioProfile = ({ profileData }: TreeBioProfileProps) => {
         }
     }
 
+      React.useEffect(() => {
+    if (profileData?.links) {
+      const initialClicks = profileData.links.reduce((acc, link) => {
+        acc[link.id] = link.clickCount;
+        return acc;
+      }, {} as { [key: string]: number });
+      setLinkClicks(initialClicks);
+    }
+  }, [profileData?.links]);
+
 
       if (!profileData) {
     return (
@@ -110,6 +121,7 @@ const TreeBioProfile = ({ profileData }: TreeBioProfileProps) => {
 
   const handleLinkClick = async (linkId:string)=>{
     try {
+      await logLinkClick(linkId);
         setLinkClicks(prev =>({
              ...prev,
         [linkId]: (prev[linkId] || 0) + 1
@@ -249,7 +261,7 @@ return (
               <Button
                 key={link.id}
                 asChild
-                onClick={(event) => handleLinkClick(link.id, link.url, event)}
+                onClick={(event) => handleLinkClick(link.id)}
                 variant="outline"
                 className={`w-full h-14 text-base font-medium backdrop-blur-sm transition-all duration-200 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] group ${theme === "dark"
                   ? "border-zinc-600/40 bg-zinc-700/40 text-zinc-100 hover:bg-zinc-600/60 hover:border-zinc-500/60"
