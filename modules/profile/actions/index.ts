@@ -95,3 +95,18 @@ export const createUserProfile = async (data:ProfileFormData)=>{
     data:profile
    }
 }
+
+
+export const getUserByUsername = async (username:string)=>{
+  const currentUser = await db.user.findUnique({
+    where:{
+      username:username
+    },
+    include:{
+      links:true,
+      socialLinks:true
+    }
+  })
+
+  return currentUser;
+}
