@@ -21,11 +21,14 @@ import {
     Camera,
     Edit3,
     X,
+    Icon,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { getDefaultClassNames } from "react-day-picker";
 import { LinkFormWithPreview, LinkCard } from "./link-card";
-import { createLinkByUser } from "../actions";
+import { addSocialLink, createLinkByUser, editSocialLink } from "../actions";
+import { createUserProfile } from "@/modules/profile/actions";
+import { SocialLinkModal } from "./social-link-modal";
 
 const profileSchema = z.object({
     firstName: z
@@ -60,9 +63,15 @@ const linkSchema = z.object({
         .optional(),
 });
 
+const socialLinksSchema = z.object({
+    platform: z.enum(["instagram", "youtube", "email"]),
+    url: z.url().min(1, "Url is required")
+})
+
 
 export type ProfileFormData = z.infer<typeof profileSchema>
 export type LinkFormData = z.infer<typeof linkSchema>
+export type socialLinksData = z.infer<typeof socialLinksSchema>
 
 interface Link {
     id: string;
@@ -80,6 +89,12 @@ interface Profile {
     imageUrl?: string;
 }
 
+interface SocialLink {
+    id: string;
+    platform: "instagram" | "youtube" | "email";
+    url: string;
+}
+
 interface Props {
     username: string;
     bio: string;
@@ -90,11 +105,14 @@ interface Props {
         url: string;
         clickCount: number;
         createdAt: Date;
-    }[]
+    }[],
+    socialLinks?: SocialLink[]
 }
 
-const LinkForm = ({ username, bio, link }: Props) => {
+const LinkForm = ({ username, bio, link, socialLinks: initialSocialLink = [] }: Props) => {
     const currentUser = useUser();
+
+    console.log(currentUser.user?.firstName, currentUser.user?.lastName)
     const [profile, setProfile] = useState<Profile>({
         firstName: currentUser.user?.firstName || "",
         lastName: currentUser.user?.lastName || "",
@@ -106,6 +124,29 @@ const LinkForm = ({ username, bio, link }: Props) => {
     const [isAddingLink, setIsAddingLink] = useState(false);
     const [links, setLinks] = React.useState<Link[]>(link || []);
     const [editingLinkId, setEditingLinkId] = React.useState<string | null>(null);
+
+    //socialLinks
+    const [userSocialLinks, setUserSocialLinks] = useState<SocialLink[]>(initialSocialLink)
+    const [isSocialModalOpen, setIsSocialModalOpen] = React.useState(false);
+    const [editingSocialLink, setEditingSocialLink] = React.useState<SocialLink | null>(null);
+
+    const handleAddSocialLink = () => {
+        setEditingSocialLink(null);
+        setIsSocialModalOpen(true)
+    }
+
+    const getSocialIcon = (platform: string) => {
+        switch (platform) {
+            case "instagram":
+                return Instagram;
+            case "youtube":
+                return Youtube;
+            case "email":
+                return Mail;
+            default:
+                return Mail;
+        }
+    };
 
 
     const profileForm = useForm<ProfileFormData>({
@@ -127,30 +168,89 @@ const LinkForm = ({ username, bio, link }: Props) => {
         },
     });
 
-    const onProfileSubmit = async (data: ProfileFormData) => { }
+    const onProfileSubmit = async (data: ProfileFormData) => {
+        try {
+            setProfile((prev) => ({ ...prev, ...data }));
+
+            const updatedProfile = await createUserProfile(data)
+
+            console.log("Updated Profile:", updatedProfile);
+            toast.success("Profile updated successfully!");
+        } catch (error) {
+            console.error("Error updating profile:", error);
+            toast.error("Failed to update profile.");
+        }
+        finally {
+            profileForm.reset();
+            setEditingProfile(false);
+
+        }
+
+    }
 
     const onLinkSubmit = async (data: LinkFormData) => {
 
         try {
             const link = await createLinkByUser(data);
 
-            
-      if (link?.data?.id) {
-        setLinks((prev) => [
-          ...prev,
-          { id: link.data.id, ...data, clickCount: 0 },
-        ]);
-      }
-      toast.success("Link created successfully!");
+
+            if (link?.data?.id) {
+                setLinks((prev) => [
+                    ...prev,
+                    { id: link.data.id, ...data, clickCount: 0 },
+                ]);
+            }
+            toast.success("Link created successfully!");
         } catch (error) {
-             console.error("Something Went wrong", error);
-      toast.error("Failed to create link.");
+            console.error("Something Went wrong", error);
+            toast.error("Failed to create link.");
         }
-        finally{
-              linkForm.reset();
-      setIsAddingLink(false);
+        finally {
+            linkForm.reset();
+            setIsAddingLink(false);
         }
-     }
+    }
+
+    const onSocialLinkSubmit = async (data: socialLinksData) => {
+try {
+    if(editingSocialLink){
+        const result = await editSocialLink(data , editingSocialLink.id)
+
+          if (result?.sucess) {
+          setUserSocialLinks((prev) =>
+            prev.map((link) =>
+              link.id === editingSocialLink.id
+                ? { ...link, platform: data.platform, url: data.url }
+                : link
+            )
+          );
+          toast.success(`${data.platform} link updated successfully!`);
+        } else {
+          toast.error(result?.error || "Failed to update social link.");
+        }
+    }
+    else{
+        const result = await addSocialLink(data);
+
+        if(result?.success && result?.data){
+            const newSocialLink: SocialLink = {
+            id: result.data?.id,
+            platform: data.platform,
+            url: data.url,
+          };
+           setUserSocialLinks((prev) => [...prev, newSocialLink]);
+           toast.success(`${data.platform} link added successfully!`)
+        }
+     
+    }
+} catch (error) {
+      console.error("Error saving social link:", error);
+      toast.error("Failed to save social link.");
+}
+finally{
+     setEditingSocialLink(null);
+}
+    }
 
 
     const onEditLinkSubmit = async (data: LinkFormData) => { }
@@ -268,6 +368,43 @@ const LinkForm = ({ username, bio, link }: Props) => {
 
                     </div>
 
+                    {/* Social Links */}
+                    <div className="mt-4 flex gap-2 flex-wrap">
+                        {
+                            userSocialLinks.map((socialLink) => {
+                                const Icon = getSocialIcon(socialLink.platform)
+                                return (
+                                    <div key={socialLink.id} className="relative group">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-9 w-9 p-0 bg-transparent"
+                                            onClick={() => window.open(socialLink.url, '_blank')}
+                                        >
+                                            <Icon size={16} />
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        // onClick={() => handleDeleteSocialLink(socialLink.id)}
+                                        >
+                                            <X size={10} />
+                                        </Button>
+                                    </div>
+                                )
+                            })
+                        }
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 w-9 p-0 border-dashed bg-transparent"
+                            onClick={handleAddSocialLink}
+                        >
+                            <Plus size={16} />
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -319,6 +456,16 @@ const LinkForm = ({ username, bio, link }: Props) => {
                 }
 
             </div>
+
+            <SocialLinkModal
+              isOpen={isSocialModalOpen}
+        onClose={() => setIsSocialModalOpen(false)}
+        onSubmit={onSocialLinkSubmit}
+        defaultValues={editingSocialLink ? {
+          platform: editingSocialLink.platform,
+          url: editingSocialLink.url
+        } : undefined}
+            />
         </div>
     )
 }

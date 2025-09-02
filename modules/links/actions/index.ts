@@ -3,6 +3,7 @@
 import {db} from "@/lib/db";
 import { currentUser } from "@clerk/nextjs/server";
 import { LinkFormData } from "../components/link-form";
+import { SocialLinkFormData } from "../components/social-link-modal";
 
 
 
@@ -58,4 +59,37 @@ export const getAllLinkForUser = async ()=>{
         data:links
     }
 
+}
+
+export const addSocialLink = async(data:SocialLinkFormData)=>{
+    const user = await currentUser()
+
+      if (!user) return { success: false, error: "No authenticated user found" };
+
+      const socialLink = await db.socialLink.create({
+        data:{
+            platform:data.platform,
+            url:data.url,
+            user:{
+                connect:{
+                    clerkId:user.id
+                }
+            }
+        }
+      })
+
+      return {
+        sucess:true,
+        message:"Social link added successfully",
+        data:socialLink
+    }
+}
+
+export const editSocialLink = async(data:SocialLinkFormData,socialLinkId:string)=>{
+    const user = await currentUser();
+
+    if (!user) return { success: false, error: "No authenticated user found" };
+
+    await db.socialLink.update({where:{id:socialLinkId , user:{clerkId:user.id}},data:data});
+    return {sucess:true, message:"Social link updated successfully!"}
 }

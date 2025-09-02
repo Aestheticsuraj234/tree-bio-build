@@ -28,17 +28,17 @@ const HomePage = async () => {
 
           <div className='pt-4'>
 
-{
-  user.success && profile?.username && (
-<Link href="/admin/my-tree">
-              <Button size="lg" className="px-8 py-3 text-lg font-medium cursor-pointer">
-                TreeBio Dashboard
-              </Button>
-            </Link>
-  )
-}
+            {
+              user.success && profile?.username && (
+                <Link href="/admin/my-tree">
+                  <Button size="lg" className="px-8 py-3 text-lg font-medium cursor-pointer">
+                    TreeBio Dashboard
+                  </Button>
+                </Link>
+              )
+            }
 
-            
+
           </div>
         </div>
 
